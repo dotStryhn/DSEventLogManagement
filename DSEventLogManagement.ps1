@@ -60,8 +60,39 @@ function Get-DSEventlogConfiguration {
 }
 
 function Test-DSEventlogConfiguration {
+    <#
+   .Synopsis
+    Tests a given EventLogConfiguration from a Pipeline, XML or Parameter
+   .Example
+    C:\Configs\Application-Std-Cfg.xml | Test-DSEventlogConfiguration
+    Tests the Configuration against the saved XML-configuration in the Application-Std-Cfg.xml
+   .Example
+    Test-DSEventlogConfiguration -EventLogName ForwardedEvents -AutoBackup $true -Retention $false
+    Tests the Forwarded EventLogConfiguration against the given arguments
+   .Parameter XMLPath
+    The XML-file path
+   .Parameter EventLogName
+    Name of the EventLog
+   .Parameter EventLogPath
+    The path to the EventLogFile (.evtx)
+   .Parameter AutoBackup
+    AutoBackup? $True or $False
+   .Parameter Retention
+    Retention? $True or $False
+   .Parameter MaxLogSize
+    The MaxLogFile size, ie. 10485760 or 10mb
+   .Parameter EventLogEnabled
+    EventLogEnabled? $True or $False
+   .Notes
+    Name:       Get-DSEventlogConfigurationToXML
+    Author:     Tom Stryhn (@dotStryhn)
+   .Link 
+    https://github.com/dotStryhn/DSEventLogManagement
+    http://dotstryhn.dk
+    #>
 
     [CmdletBinding()]
+    [OutputType([bool])]
     param(
         [Parameter(ValueFromPipeline = $true, ParameterSetName = 'Pipeline', DontShow)][XML]$XMLInput,
         [ValidateScript( {Test-path -Path $_ -PathType Leaf})]
@@ -255,7 +286,22 @@ function Test-DSEventlogConfiguration {
     $Compliance
 }
 
-function Save-DSEventlogConfiguration {
+function Save-DSEventlogConfigurationToXML {
+    <#
+   .Synopsis
+    Saves the EventLogConfiguration XML from pipeline to a specified file
+   .Example
+    Get-DSEventLogConfiguration -EventLogName ForwardedEvents | Save-DSEventLogConfigurationToXML -Path C:\Temp\ForwardedEvents.xml
+    Saves the EventLogConfiguration from the Get-DSEventLogConfiguration function
+   .Parameter Path
+    The path to save the XML-file
+   .Notes
+    Name:       Get-DSEventlogConfigurationToXML
+    Author:     Tom Stryhn (@dotStryhn)
+   .Link 
+    https://github.com/dotStryhn/DSEventLogManagement
+    http://dotstryhn.dk
+    #>
 
     [CmdletBinding()]
     param(
@@ -263,7 +309,7 @@ function Save-DSEventlogConfiguration {
         [Parameter(Mandatory = $true, Position = 0)][string]$Path
     )
     
-    # Checks for publishingchannel and removes it, since it will generate an error importing
+    # Checks for publishingchannel and removes it, since it will generate an error when importing
     if ($EventlogConfiguration.channel.publishing) {
         $EventlogConfiguration.channel.RemoveChild($EventlogConfiguration.channel.publishing) | Out-Null
     }
