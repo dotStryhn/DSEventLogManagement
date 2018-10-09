@@ -1,3 +1,48 @@
+function Get-DSEventlogConfiguration {
+
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)][string]$EventLogName
+    )
+
+    "Trying to retrieve System Configuration" | Write-Verbose
+    #Creating a Process to get information from the execution
+    $GetLogConfProcessInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $GetLogConfProcessInfo.FileName = "wevtutil.exe"
+    $GetLogConfProcessInfo.RedirectStandardError = $true
+    $GetLogConfProcessInfo.RedirectStandardOutput = $true
+    $GetLogConfProcessInfo.UseShellExecute = $false
+    $GetLogConfProcessInfo.Arguments = "gl $($EventLogName) /f:xml"
+    $TryProcess = New-Object System.Diagnostics.Process
+    $TryProcess.StartInfo = $GetLogConfProcessInfo
+    $TryProcess.Start() | Out-Null
+    $TryProcess.WaitForExit()
+
+    # Using Exitcodes for "Errorhandling"
+    if ($TryProcess.ExitCode -eq 0) {
+        # Ran without Errors
+        [XML]$EventLogConfiguration = $TryProcess.StandardOutput.ReadToEnd()
+        "EventLog: [$EventLogName] Exists" | Write-Verbose
+        "System Configuration retrieved`n" | Write-Verbose
+        $EventLogConfiguration
+    }
+    elseif ($TryProcess.ExitCode -eq 5) {
+        # EventLog: Access Denied
+        "EventLog: [$EventLogName] Access Denied`n" | Write-Verbose
+        "Nothing returned`n" | Write-Verbose
+    }
+    elseif ($TryProcess.ExitCode -eq 15007) {
+        # EventLog: Not Found
+        "EventLog: [$EventLogName] Not Found`n" | Write-Verbose
+        "Nothing returned`n" | Write-Verbose
+    }
+    else {
+        # Unhandled Exitcodes
+        $TryProcess.StandardError.ReadToEnd() | Write-Verbose
+        Throw 'Error getting Configuration'
+    }
+}
+
 function Test-DSEventlogConfiguration {
 
     [CmdletBinding()]
@@ -88,7 +133,6 @@ function Test-DSEventlogConfiguration {
         Throw 'Error getting Configuration'
     }
 
-  
     if (($MaxLogSize -eq "") -and ($EventLogPath -eq "") -and (-not($RetentionCheck)) -and (-not($AutoBackupCheck)) -and (-not($EnabledCheck)) -and ($Found -eq $true) -and ($Access -eq $false)) {
         "Nothing to Validate - Confirming Existence`n" | Write-Verbose
     }
@@ -193,51 +237,6 @@ function Test-DSEventlogConfiguration {
     }
     "Validation Returning: $Compliance" | Write-Verbose
     $Compliance
-}
-
-function Get-DSEventlogConfiguration {
-
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true, Position = 0)][string]$EventLogName
-    )
-
-    "Trying to retrieve System Configuration" | Write-Verbose
-    #Creating a Process to get information from the execution
-    $GetLogConfProcessInfo = New-Object System.Diagnostics.ProcessStartInfo
-    $GetLogConfProcessInfo.FileName = "wevtutil.exe"
-    $GetLogConfProcessInfo.RedirectStandardError = $true
-    $GetLogConfProcessInfo.RedirectStandardOutput = $true
-    $GetLogConfProcessInfo.UseShellExecute = $false
-    $GetLogConfProcessInfo.Arguments = "gl $($EventLogName) /f:xml"
-    $TryProcess = New-Object System.Diagnostics.Process
-    $TryProcess.StartInfo = $GetLogConfProcessInfo
-    $TryProcess.Start() | Out-Null
-    $TryProcess.WaitForExit()
-
-    # Using Exitcodes for "Errorhandling"
-    if ($TryProcess.ExitCode -eq 0) {
-        # Ran without Errors
-        [XML]$EventLogConfiguration = $TryProcess.StandardOutput.ReadToEnd()
-        "EventLog: [$EventLogName] Exists" | Write-Verbose
-        "System Configuration retrieved`n" | Write-Verbose
-        $EventLogConfiguration
-    }
-    elseif ($TryProcess.ExitCode -eq 5) {
-        # EventLog: Access Denied
-        "EventLog: [$EventLogName] Access Denied`n" | Write-Verbose
-        "Nothing returned`n" | Write-Verbose
-    }
-    elseif ($TryProcess.ExitCode -eq 15007) {
-        # EventLog: Not Found
-        "EventLog: [$EventLogName] Not Found`n" | Write-Verbose
-        "Nothing returned`n" | Write-Verbose
-    }
-    else {
-        # Unhandled Exitcodes
-        $TryProcess.StandardError.ReadToEnd() | Write-Verbose
-        Throw 'Error getting Configuration'
-    }
 }
 
 function Save-DSEventlogConfiguration {
