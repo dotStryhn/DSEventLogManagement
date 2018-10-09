@@ -91,18 +91,18 @@ function Test-DSEventlogConfiguration {
     http://dotstryhn.dk
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'FromARG')]
     [OutputType([bool])]
     param(
-        [Parameter(ValueFromPipeline = $true, ParameterSetName = 'Pipeline', DontShow)][XML]$XMLInput,
-        [ValidateScript( {Test-path -Path $_ -PathType Leaf})]
-        [Parameter(Position = 0, ParameterSetName = 'FromXML')][String]$XMLPath,
         [Parameter(Mandatory = $true, Position = 0, ParameterSetName = 'FromARG')][String]$EventLogName,
         [Parameter(ParameterSetName = 'FromARG')][string]$EventLogPath = "",
         [Parameter(ParameterSetName = 'FromARG')][bool]$AutoBackup = $false,
         [Parameter(ParameterSetName = 'FromARG')][bool]$Retention = $false,
         [Parameter(ParameterSetName = 'FromARG')][int]$MaxLogSize,
-        [Parameter(ParameterSetName = 'FromARG')][bool]$EventLogEnabled = $true
+        [Parameter(ParameterSetName = 'FromARG')][bool]$EventLogEnabled = $true,
+        [Parameter(ValueFromPipeline = $true, ParameterSetName = 'Pipeline', DontShow)][XML]$XMLInput,
+        [ValidateScript( {Test-path -Path $_ -PathType Leaf})]
+        [Parameter(Mandatory = $true, ParameterSetName = 'FromXML')][String]$XMLPath
     )
 
     switch ($PSCmdlet.ParameterSetName) {
