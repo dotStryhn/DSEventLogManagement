@@ -1,6 +1,22 @@
 function Get-DSEventlogConfiguration {
+    <#
+   .Synopsis
+    Gets the EventLogConfiguration the specified EventLog in XML
+   .Example
+    Get-DSEventLogConfiguration -EventLogName ForwardedEvents
+    Gets the XML Configuration from the ForwardedEvents Log
+   .Parameter EventLogName
+    The name of the EventLog
+   .Notes
+    Name:       Get-DSEventLogConfiguration
+    Author:     Tom Stryhn (@dotStryhn)
+   .Link 
+    https://github.com/dotStryhn/DSEventLogManagement
+    http://dotstryhn.dk
+    #> 
 
     [CmdletBinding()]
+    [OutputType([XML])]
     param(
         [Parameter(Mandatory = $true, Position = 0)][string]$EventLogName
     )
