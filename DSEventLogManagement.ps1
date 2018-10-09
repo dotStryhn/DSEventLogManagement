@@ -3,7 +3,7 @@ function Test-DSEventlogConfiguration {
     [CmdletBinding()]
     param(
         [Parameter(ValueFromPipeline = $true, ParameterSetName = 'Pipeline', DontShow)][XML]$XMLInput,
-        [ValidateScript({Test-path -Path $_ -PathType Leaf})]
+        [ValidateScript( {Test-path -Path $_ -PathType Leaf})]
         [Parameter(Position = 0, ParameterSetName = 'FromXML')][String]$XMLPath,
         [Parameter(Mandatory = $true, Position = 0, ParameterSetName = 'FromARG')][String]$EventLogName,
         [Parameter(ParameterSetName = 'FromARG')][string]$EventLogPath = "",
@@ -19,33 +19,38 @@ function Test-DSEventlogConfiguration {
             try {
                 "Loading Desired Configuration '$XMLPath'" | Write-Verbose
                 [XML]$XMLInput = Get-Content $XMLPath
-            } catch {
+            }
+            catch {
                 throw "Error loading file as XML"
             }
             "Desired Configuration Loaded`n" | Write-Verbose
         }
         "FromARG" {
             "Running with Arguments Parameterset`n" | Write-Verbose
-            if($PSBoundParameters.ContainsKey('AutoBackup')) { if($AutoBackup -eq $true ) { $AutoBackupCheck = "true" } else { $AutoBackupCheck = 'false' } }
-            if($PSBoundParameters.ContainsKey('Retention')) { if($Retention -eq $true) { $RetentionCheck = "true" } else { $RetentionCheck = 'false' } }
-            if($PSBoundParameters.ContainsKey('EventLogEnabled')) { if($EventLogEnabled -eq $true) { $EnabledCheck = "true" } else { $EnabledCheck = 'false' } }
+            # Checks for Arguments used in the Commandline and setting them to comparable values
+            if ($PSBoundParameters.ContainsKey('AutoBackup')) { if ($AutoBackup -eq $true ) { $AutoBackupCheck = "true" } else { $AutoBackupCheck = 'false' } }
+            if ($PSBoundParameters.ContainsKey('Retention')) { if ($Retention -eq $true) { $RetentionCheck = "true" } else { $RetentionCheck = 'false' } }
+            if ($PSBoundParameters.ContainsKey('EventLogEnabled')) { if ($EventLogEnabled -eq $true) { $EnabledCheck = "true" } else { $EnabledCheck = 'false' } }
         }
     }
 
-    if($XMLInput) {
-        $EventLogName       = $XMLInput.channel.name
-        $EventLogPath       = $XMLInput.channel.logging.logFileName
-        $AutoBackupCheck    = $XMLInput.channel.logging.autoBackup
-        $RetentionCheck     = $XMLInput.channel.logging.retention
-        $MaxLogSize         = $XMLInput.channel.logging.maxSize
-        $EnabledCheck       = $XMLInput.channel.enabled
+    # Gets the values from XML-file
+    if ($XMLInput) {
+        $EventLogName = $XMLInput.channel.name
+        $EventLogPath = $XMLInput.channel.logging.logFileName
+        $AutoBackupCheck = $XMLInput.channel.logging.autoBackup
+        $RetentionCheck = $XMLInput.channel.logging.retention
+        $MaxLogSize = $XMLInput.channel.logging.maxSize
+        $EnabledCheck = $XMLInput.channel.enabled
     }
 
+    # Setting Controlvalues
     $Found = $true
     $Access = $true
     $Compliance = $true
 
     "Trying to retrieve System Configuration" | Write-Verbose
+    # Creating a Process to get information from the execution
     $GetLogConfProcessInfo = New-Object System.Diagnostics.ProcessStartInfo
     $GetLogConfProcessInfo.FileName = "wevtutil.exe"
     $GetLogConfProcessInfo.RedirectStandardError = $true
@@ -57,41 +62,52 @@ function Test-DSEventlogConfiguration {
     $TryProcess.Start() | Out-Null
     $TryProcess.WaitForExit()
 
-    if($TryProcess.ExitCode -eq 0) {
+    # Using Exitcodes for "Errorhandling"
+    if ($TryProcess.ExitCode -eq 0) {
+        # Ran without Errors
         [XML]$CurrentConfiguration = $TryProcess.StandardOutput.ReadToEnd()
         "EventLog: [$EventLogName] Exists" | Write-Verbose
         "System Configuration retrieved`n" | Write-Verbose
-    } elseif ($TryProcess.ExitCode -eq 5) {                             # EventLog: Access Denied
+    }
+    elseif ($TryProcess.ExitCode -eq 5) {
+        # EventLog: Access Denied
         "EventLog: [$EventLogName] Access Denied`n" | Write-Verbose
         $Found = $true
         $Access = $false
-    } elseif ($TryProcess.ExitCode -eq 15007) {                         # EventLog: Not Found
+    }
+    elseif ($TryProcess.ExitCode -eq 15007) {
+        # EventLog: Not Found
         "EventLog: [$EventLogName] Not Found`n" | Write-Verbose
         $Access = $false
         $Found = $false
         $Compliance = $Compliance -and $false
-    } else {
+    }
+    else {
+        # Unhandled Exitcodes
         $TryProcess.StandardError.ReadToEnd() | Write-Verbose
         Throw 'Error getting Configuration'
     }
 
   
-    if(($MaxLogSize -eq "") -and ($EventLogPath -eq "") -and (-not($RetentionCheck)) -and (-not($AutoBackupCheck)) -and (-not($EnabledCheck)) -and ($Found -eq $true) -and ($Access -eq $false)) {
+    if (($MaxLogSize -eq "") -and ($EventLogPath -eq "") -and (-not($RetentionCheck)) -and (-not($AutoBackupCheck)) -and (-not($EnabledCheck)) -and ($Found -eq $true) -and ($Access -eq $false)) {
         "Nothing to Validate - Confirming Existence`n" | Write-Verbose
-    } else {
-        if(($Found -eq $true) -and ($Access -eq $true)) {
+    }
+    else {
+        if (($Found -eq $true) -and ($Access -eq $true)) {
             "Validation  Setting" | Write-Verbose
-            if($EnabledCheck) {
-                if((-not($AutoBackupCheck)) -and (-not($RetentionCheck)) -and ($EventLogPath -eq "") -and ($MaxLogSize -eq "")) {
+            if ($EnabledCheck) {
+                if ((-not($AutoBackupCheck)) -and (-not($RetentionCheck)) -and ($EventLogPath -eq "") -and ($MaxLogSize -eq "")) {
                     $LastLine = "`n"
-                } else {
+                }
+                else {
                     $LastLine = ""
                 }
 
-                if($EnabledCheck -eq $CurrentConfiguration.channel.enabled) {
+                if ($EnabledCheck -eq $CurrentConfiguration.channel.enabled) {
                     $Compliance = $Compliance -and $true
                     "    OK      Enabled    | System: $($CurrentConfiguration.channel.enabled)$LastLine" | Write-Verbose
-                } else {
+                }
+                else {
                     $Compliance = $Compliance -and $false
                     $Spacing = ""
                     $i = 0
@@ -99,17 +115,19 @@ function Test-DSEventlogConfiguration {
                 }
             }
         
-            if($AutoBackupCheck) {
-                if(($MaxLogSize -eq "") -and ($EventLogPath -eq "") -and (-not($RetentionCheck))) {
+            if ($AutoBackupCheck) {
+                if (($MaxLogSize -eq "") -and ($EventLogPath -eq "") -and (-not($RetentionCheck))) {
                     $LastLine = "`n"
-                } else {
+                }
+                else {
                     $LastLine = ""
                 }
 
-                if($AutoBackupCheck -eq $CurrentConfiguration.channel.logging.autoBackup) {
+                if ($AutoBackupCheck -eq $CurrentConfiguration.channel.logging.autoBackup) {
                     $Compliance = $Compliance -and $true
                     "    OK      AutoBackup | System: $AutoBackupCheck$LastLine" | Write-Verbose
-                } else {
+                }
+                else {
                     $Compliance = $Compliance -and $false
                     $Spacing = ""
                     $i = 0
@@ -117,17 +135,19 @@ function Test-DSEventlogConfiguration {
                 }
             }
             
-            if($RetentionCheck) {
-                if(($MaxLogSize -eq "") -and ($EventLogPath -eq "")) {
+            if ($RetentionCheck) {
+                if (($MaxLogSize -eq "") -and ($EventLogPath -eq "")) {
                     $LastLine = "`n"
-                } else {
+                }
+                else {
                     $LastLine = ""
                 }
 
-                if($RetentionCheck -eq $CurrentConfiguration.channel.logging.retention) {
+                if ($RetentionCheck -eq $CurrentConfiguration.channel.logging.retention) {
                     $Compliance = $Compliance -and $true
                     "    OK      Retention  | System: $RetentionCheck$LastLine" | Write-Verbose
-                } else {
+                }
+                else {
                     $Compliance = $Compliance -and $false
                     $Spacing = ""
                     $i = 0
@@ -135,34 +155,38 @@ function Test-DSEventlogConfiguration {
                 }
             }
         
-            if($EventLogPath -ne "") {
-                if($MaxLogSize -eq "") {
+            if ($EventLogPath -ne "") {
+                if ($MaxLogSize -eq "") {
                     $LastLine = "`n"
-                } else {
+                }
+                else {
                     $LastLine = ""
                 }
 
-                if($EventLogPath -eq $CurrentConfiguration.channel.logging.logFileName) {
+                if ($EventLogPath -eq $CurrentConfiguration.channel.logging.logFileName) {
                     $Compliance = $Compliance -and $true
                     "    OK      LogPath    | System: $EventLogPath$LastLine" | Write-Verbose
-                } else {
+                }
+                else {
                     $Compliance = $Compliance -and $false
                     "[MISMATCH]  LogPath    | System: $($CurrentConfiguration.channel.logging.logFileName) | Desired: $EventLogPath$LastLine" | Write-Verbose
                 }
             }
             
-            if($MaxLogSize -ne "") {
-                if($MaxLogSize -eq $CurrentConfiguration.channel.logging.maxSize) {
+            if ($MaxLogSize -ne "") {
+                if ($MaxLogSize -eq $CurrentConfiguration.channel.logging.maxSize) {
                     $Compliance = $Compliance -and $true
                     "    OK      MaxLogSize | System: $MaxLogSize`n" | Write-Verbose
-                } else {
+                }
+                else {
                     $Compliance = $Compliance -and $false
                     $Spacing = ""
                     $i = 0
                     "[MISMATCH]  MaxLogSize | System: $($CurrentConfiguration.channel.logging.maxSize)$(while($i -le (($CurrentConfiguration.channel.logging.logFileName).Length - $($CurrentConfiguration.channel.logging.maxSize).Length)) { $Spacing += " "; $i++ })$Spacing| Desired: $MaxLogSize`n" | Write-Verbose
                 }
             }
-        } elseif (($Access -eq $false) -and ($Found -eq $true)) {
+        }
+        elseif (($Access -eq $false) -and ($Found -eq $true)) {
             "[ERROR] Unable to Validate without Access" | Write-Verbose
             $Compliance = $Compliance -and $false
         }
@@ -179,6 +203,7 @@ function Get-DSEventlogConfiguration {
     )
 
     "Trying to retrieve System Configuration" | Write-Verbose
+    #Creating a Process to get information from the execution
     $GetLogConfProcessInfo = New-Object System.Diagnostics.ProcessStartInfo
     $GetLogConfProcessInfo.FileName = "wevtutil.exe"
     $GetLogConfProcessInfo.RedirectStandardError = $true
@@ -190,18 +215,26 @@ function Get-DSEventlogConfiguration {
     $TryProcess.Start() | Out-Null
     $TryProcess.WaitForExit()
 
-    if($TryProcess.ExitCode -eq 0) {
+    # Using Exitcodes for "Errorhandling"
+    if ($TryProcess.ExitCode -eq 0) {
+        # Ran without Errors
         [XML]$EventLogConfiguration = $TryProcess.StandardOutput.ReadToEnd()
         "EventLog: [$EventLogName] Exists" | Write-Verbose
         "System Configuration retrieved`n" | Write-Verbose
         $EventLogConfiguration
-    } elseif ($TryProcess.ExitCode -eq 5) {                             # EventLog: Access Denied
+    }
+    elseif ($TryProcess.ExitCode -eq 5) {
+        # EventLog: Access Denied
         "EventLog: [$EventLogName] Access Denied`n" | Write-Verbose
         "Nothing returned`n" | Write-Verbose
-    } elseif ($TryProcess.ExitCode -eq 15007) {                         # EventLog: Not Found
+    }
+    elseif ($TryProcess.ExitCode -eq 15007) {
+        # EventLog: Not Found
         "EventLog: [$EventLogName] Not Found`n" | Write-Verbose
         "Nothing returned`n" | Write-Verbose
-    } else {
+    }
+    else {
+        # Unhandled Exitcodes
         $TryProcess.StandardError.ReadToEnd() | Write-Verbose
         Throw 'Error getting Configuration'
     }
@@ -214,8 +247,9 @@ function Save-DSEventlogConfiguration {
         [Parameter(ValueFromPipeline = $true, Mandatory = $true, DontShow)][XML]$EventlogConfiguration,
         [Parameter(Mandatory = $true, Position = 0)][string]$Path
     )
-
-    if($EventlogConfiguration.channel.publishing) {
+    
+    # Checks for publishingchannel and removes it, since it will generate an error importing
+    if ($EventlogConfiguration.channel.publishing) {
         $EventlogConfiguration.channel.RemoveChild($EventlogConfiguration.channel.publishing) | Out-Null
     }
 
