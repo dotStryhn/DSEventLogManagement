@@ -1,4 +1,4 @@
-function Get-DSEventlogConfiguration {
+function Get-DSEventLogConfiguration {
     <#
    .Synopsis
     Gets the EventLogConfiguration the specified EventLog in XML
@@ -59,7 +59,7 @@ function Get-DSEventlogConfiguration {
     }
 }
 
-function Test-DSEventlogConfiguration {
+function Test-DSEventLogConfiguration {
     <#
    .Synopsis
     Tests a given EventLogConfiguration from a Pipeline, XML or Parameter
@@ -286,7 +286,7 @@ function Test-DSEventlogConfiguration {
     $Compliance
 }
 
-function Save-DSEventlogConfigurationToXML {
+function Save-DSEventLogConfigurationToXML {
     <#
    .Synopsis
     Saves the EventLogConfiguration XML from pipeline to a specified file
